@@ -159,7 +159,7 @@ class Card
       QJ.addClass @$card, 'jp-card-ie-11'
 
   attachHandlers: ->
-    numberInputFilters = [@validToggler('cardNumber')]
+    numberInputFilters = [@filterZenHan, @validToggler('cardNumber')]
     numberInputFilters.push(@maskCardNumber) if @options.masks.cardNumber
 
     bindVal @$numberInput, @$numberDisplay,
@@ -167,7 +167,7 @@ class Card
       filters: numberInputFilters
     QJ.on @$numberInput, 'payment.cardType', @handle('setCardType')
 
-    expiryFilters = [(val) -> val.replace /(\s+)/g, '']
+    expiryFilters = [@filterZenHan, (val) -> val.replace /(\s+)/g, '']
     expiryFilters.push @validToggler('cardExpiry')
 
     bindVal @$expiryInput, @$expiryDisplay,
@@ -175,7 +175,8 @@ class Card
           if text[0].length == 2 or text[1] then "/" else ""
         filters: expiryFilters
 
-    bindVal @$cvcInput, @$cvcDisplay, filters: @validToggler('cardCVC')
+    cvcFilters = [@filterZenHan, @validToggler('cardCVC')]
+    bindVal @$cvcInput, @$cvcDisplay, filters: cvcFilters
     QJ.on @$cvcInput, 'focus', @handle('flipCard')
     QJ.on @$cvcInput, 'blur', @handle('unflipCard')
 
@@ -183,6 +184,14 @@ class Card
         fill: false
         filters: @validToggler('cardHolderName')
         join: ' '
+
+  filterZenHan: (val, el, out) ->
+    if val.match /\A[0-9]\z/g
+      return val
+
+    val.replace /[０-９]/g, (s) ->
+      console.log('[filterZenHan] Has Zenkaku ' + s)
+      String.fromCharCode(s.charCodeAt(0) - 65248)
 
   handleInitialPlaceholders: ->
     for name, selector of @options.formSelectors
@@ -274,7 +283,9 @@ class Card
       val = "" if val == join
 
       for filter in opts.filters
+        old = val
         val = filter(val, el, out)
+        console.log('[Update filter] ' + filter + " " + old + " => "+ val + " is zen? " )
 
       for outEl, i in out
         if opts.fill
